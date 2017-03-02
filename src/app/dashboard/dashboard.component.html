@@ -1,0 +1,46 @@
+<div class="animated fadeIn">
+    <div class="card">
+      <div class="card-header">
+          <strong>Face</strong> Recognition
+      </div>
+      <div class="card-block">
+          <form action="" method="post" enctype="multipart/form-data" class="form-horizontal ">
+              <div class="form-group row">
+                <div class="col-md-12">
+                  <img id="uploadPreview" [src]="uploadPreviewSrc" style="width: 100%;min-height:100px" />
+                </div>
+              </div>
+              <div class="form-group row" [hidden]="true">
+                <label class="col-md-3 form-control-label" for="file-input">File input</label>
+                <div class="col-md-9">
+                    <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" (change)="changeListener($event)" accept="image/*">
+                </div>
+              </div>
+              <div class="form-group row" >
+                <div class="col-md-12" >
+                  <button class="btn btn-secondary btn-lg btn-block" type="button" (click)="selectNewClickListener($event)">Capture New</button>
+                  <button [hidden]="!uploadPreviewSrc" class="btn btn-success btn-lg btn-block" type="button">Set as Attendance</button>
+                  <button [hidden]="!uploadPreviewSrc" class="btn btn-primary btn-lg btn-block" type="button">Set as Student Photo</button>
+                </div>
+              </div>
+              <div class="controls">
+                <div class="form-group row">
+                    <label class="col-md-3 form-control-label" for="select">Select</label>
+                    <div class="col-md-9">
+                        <select id="select" name="select" class="form-control" size="1">
+                            <option value="0">Please select</option>
+                            <option value="1">Option #1</option>
+                            <option value="2">Option #2</option>
+                            <option value="3">Option #3</option>
+                        </select>
+                    </div>
+                </div>
+              </div>
+          </form>
+      </div>
+      <div class="card-footer">
+          <!-- <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-dot-circle-o"></i> Submit</button>
+          <button type="reset" class="btn btn-sm btn-danger"><i class="fa fa-ban"></i> Reset</button> -->
+      </div>
+  </div>
+</div>
