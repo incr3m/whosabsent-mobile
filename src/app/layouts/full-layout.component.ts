@@ -30,7 +30,7 @@ export class FullLayoutComponent implements OnInit {
     return this.nodeApiService.adminDetails['name'];
   }
   ngOnInit(): void {
-    this.nodeApiService.getToApp('/auth.php',{},true)
+    this.nodeApiService.getToApp('auth.php',{},true)
     .then(auth=>{
       console.log('auth');
       console.log(auth);
