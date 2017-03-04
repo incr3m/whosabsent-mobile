@@ -1,27 +1,171 @@
 import { Component, OnInit, ViewChild} from '@angular/core';
 import { Router } from '@angular/router';
 
+import { StudentService } from './../shared/student.service';
+import { NodeapiService } from './../shared/nodeapi.service';
+import { Config } from './../config/config';
+import * as _ from 'underscore';
+import * as AWS from 'aws-sdk';
+import { ActivatedRoute } from '@angular/router';
+// import * as S3Uploader from 's3-uploader';
+
+
+
+enum ControlMode  {
+    new,
+    attendance,
+    studentinfo
+}  
 
 @Component({
-  templateUrl: 'dashboard.component.html'
+  templateUrl: 'dashboard.component.html',
+  providers: [Config, StudentService, NodeapiService]   
 })
 export class DashboardComponent implements OnInit {
   
   @ViewChild('myInput')
   myInputVariable: any;
-  constructor( ) { }
+  constructor(
+     private studentService: StudentService,
+     private nodeApiService: NodeapiService,
+     private route: ActivatedRoute
+  ) { }
 
+  controlModes = ControlMode;
   public brandPrimary:string =  '#20a8d8';
   public brandSuccess:string =  '#4dbd74';
   public brandInfo:string =   '#63c2de';
   public brandWarning:string =  '#f8cb00';
   public brandDanger:string =   '#f86c6b';
+  public mode:ControlMode = ControlMode.new;
   public uploadPreviewSrc = '';
+  public setAsStudentPhoto = false;
+  public setAsAttendance = false;
+  public setAsPrimaryPhoto = true;
+  public processing = false;
+  public studentList: any;
+  public sectionList: any;
+  public s3settings: any;
+  private bucketName = 'incrm.whosabsent';
+  private s3client:any;
+  public photoUploading = false;
+  public selectedStudent = {
+    accountidno : '',
+    name: ''
+  }
+  public selectedSection = {
+    idno : '',
+    name: ''
+  }
+  public searchedStudent:any;
+
+  private startProcessing(){
+    this.processing = true;
+  }
+  private endProcessing(info?:string){
+    this.processing = false;
+    this.mode = ControlMode.new;
+  }
+  public submitPhotoClickListener($event){
+    // console.log(this.myInputVariable.nativeElement.files[0]);
+    // console.log('uploadPreviewSrc');
+    // console.log(this.uploadPreviewSrc);
+
+    this.processing = true;
+    var bucketUpl = new AWS.S3();
+    var file = this.myInputVariable.nativeElement.files[0];
+    if (file) {
+      this.send(file)
+      .then(data=>{
+        if(!data['ok']) return;
+        this.nodeApiService.postToApp('modules/account/photo/photo.php',{
+          newphotoidno:data['accountId'],
+          filename:data['savedKey'],
+          isprimary:this.setAsPrimaryPhoto
+        })
+        .then(res=>{
+          console.log('res');
+          console.log(res);
+          this.endProcessing();
+        },err=>{
+          console.log('err');
+          console.log(err);
+          this.endProcessing();
+        });
+      },err=>{
+        console.log('err');
+        console.log(err);
+        this.endProcessing();
+      })
+      
+      
+    }
+  }
+
+  public sectionSelectChanged($event){
+    console.log(this.selectedSection.idno);
+    
+
+    let qSection = _.find(this.sectionList, function(item) {
+        return item.idno == $event; 
+    });
+    this.selectedSection.name = qSection.name;
+    
+    console.log(this.selectedSection);
+  }
+
+  public studentSelectChanged($event){
+    console.log(this.selectedStudent.accountidno);
+    
+
+    let qStudent = _.find(this.studentList, function(item) {
+        return item.accountidno == $event; 
+    });
+    this.selectedStudent.name = qStudent.name;
+    
+    console.log(this.selectedStudent);
+  }
+
+  public setAsStudentPhotoClicked($event) : void{
+      this.mode = ControlMode.studentinfo;
+  }
+  public setAsAttendanceClicked($event) : void{
+      this.mode = ControlMode.attendance;
+  }
+  public hideSetAttendanceButton(){
+    return !this.uploadPreviewSrc;
+  }
 
   public changeListener($event) : void {
-      this.readThis($event.target);
-    }
-
+    if(this.photoUploading) return;
+    this.photoUploading = true;
+    this.readThis($event.target);
+  }
+  public submitAccountLog($event):void {
+    this.startProcessing();
+    console.log('section');
+    console.log(this.selectedSection);
+    
+    console.log(this.selectedSection.idno);
+    let spl = this.selectedSection.idno.split(':');
+    let xparams = {
+      cmd:'accountlog',
+      sectionidno:spl[0],
+      subjectidno:spl[1],
+      accountidno:this.searchedStudent['idno']
+    };
+    console.log(xparams);
+    
+    this.nodeApiService.getToApp('modules/api.php',xparams
+      )
+    .then(data=>{
+      console.log('fetch return data from cwd accountlog');
+      console.log(data);
+      this.searchedStudent = data;
+      this.endProcessing();
+    })
+    
+  }
   public readThis(inputValue: any) : void {
     var self = this;
     var file:File = inputValue.files[0]; 
@@ -29,468 +173,117 @@ export class DashboardComponent implements OnInit {
 
     myReader.readAsDataURL(file);
     myReader.onloadend = function(e){
+      self.mode = ControlMode.new;
       self.uploadPreviewSrc = myReader.result;
+      console.log('searching..');
+      if(file){
+        self.nodeApiService.postToApi('search',{
+          avatar:file,
+          key:new Date().toString()
+        })
+        .then((data:any)=>{
+          console.log('search result');
+          console.log(data);
+          if(data['FaceMatches'].length>0){
+            let match = data['FaceMatches'][0];
+            let accountIdNo = match['Face']['ExternalImageId'];
+            self.fetchAccountInfo(accountIdNo);
+          }
+          else{
+            self.searchedStudent = {};
+            self.searchedStudent['notfound'] = true;
+          }
+          self.photoUploading = false;
+        },err=>{
+          console.log('error occurred');
+          console.log(err);
+          self.photoUploading = false;
+        });
+      }
+      
     }
+    
+    
   }
   
+  public fetchAccountInfo(accountidno){
+    this.nodeApiService.getToApp('api.php',{getUserId:accountidno})
+    .then(data=>{
+      console.log('fetch user data');
+      console.log(data);
+      if(data['usn']){
+        this.nodeApiService.getToApp('modules/api.php',{usn:data['usn']})
+        .then(data=>{
+          console.log('fetch user data from usn');
+          console.log(data);
+          this.searchedStudent = data;
+          this.endProcessing();
+        })
+      }
+      else{
+        this.endProcessing('Usn not found.');
+      }
+    })
+  }
+
   public selectNewClickListener($event) : void{
     this.uploadPreviewSrc = '';
     this.myInputVariable.nativeElement.value = "";
     this.myInputVariable.nativeElement.click();
   }
-
-  // dropdown buttons
-  public status: { isopen: boolean } = { isopen: false };
-  public toggleDropdown($event:MouseEvent):void {
-    $event.preventDefault();
-    $event.stopPropagation();
-    this.status.isopen = !this.status.isopen;
+ 
+  
+  private send(file) {
+    if(!this.selectedStudent.accountidno) return;
+    
+    let key = Date.now().toString();
+    return this.nodeApiService.upload(this.selectedStudent.accountidno,key,file);
   }
-
-  //convert Hex to RGBA
-  public convertHex(hex:string,opacity:number){
-    hex = hex.replace('#','');
-    let r = parseInt(hex.substring(0,2), 16);
-    let g = parseInt(hex.substring(2,4), 16);
-    let b = parseInt(hex.substring(4,6), 16);
-
-    let rgba = 'rgba('+r+','+g+','+b+','+opacity/100+')';
-    return rgba;
-  }
-
-  // events
-  public chartClicked(e:any):void {
-    console.log(e);
-  }
-
-  public chartHovered(e:any):void {
-    console.log(e);
-  }
-
-  // lineChart1
-  public lineChart1Data:Array<any> = [
-    {
-      data: [65, 59, 84, 84, 51, 55, 40],
-      label: 'Series A'
-    }
-  ];
-  public lineChart1Labels:Array<any> = ['January', 'February', 'March', 'April', 'May', 'June', 'July'];
-  public lineChart1Options:any = {
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        gridLines: {
-          color: 'transparent',
-          zeroLineColor: 'transparent'
-        },
-        ticks: {
-          fontSize: 2,
-          fontColor: 'transparent',
-        }
-
-      }],
-      yAxes: [{
-        display: false,
-        ticks: {
-          display: false,
-          min: 40 - 5,
-          max: 84 + 5,
-        }
-      }],
-    },
-    elements: {
-      line: {
-        borderWidth: 1
-      },
-      point: {
-        radius: 4,
-        hitRadius: 10,
-        hoverRadius: 4,
-      },
-    },
-    legend: {
-      display: false
-    }
-  };
-  public lineChart1Colours:Array<any> = [
-    { // grey
-      backgroundColor: this.brandPrimary,
-      borderColor: 'rgba(255,255,255,.55)'
-    }
-  ];
-  public lineChart1Legend:boolean = false;
-  public lineChart1Type:string = 'line';
-
-  // lineChart2
-  public lineChart2Data:Array<any> = [
-    {
-      data: [1, 18, 9, 17, 34, 22, 11],
-      label: 'Series A'
-    }
-  ];
-  public lineChart2Labels:Array<any> = ['January', 'February', 'March', 'April', 'May', 'June', 'July'];
-  public lineChart2Options:any = {
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        gridLines: {
-          color: 'transparent',
-          zeroLineColor: 'transparent'
-        },
-        ticks: {
-          fontSize: 2,
-          fontColor: 'transparent',
-        }
-
-      }],
-      yAxes: [{
-        display: false,
-        ticks: {
-          display: false,
-          min: 1 - 5,
-          max: 34 + 5,
-        }
-      }],
-    },
-    elements: {
-      line: {
-        tension: 0.00001,
-        borderWidth: 1
-      },
-      point: {
-        radius: 4,
-        hitRadius: 10,
-        hoverRadius: 4,
-      },
-    },
-    legend: {
-      display: false
-    }
-  };
-  public lineChart2Colours:Array<any> = [
-    { // grey
-      backgroundColor: this.brandInfo,
-      borderColor: 'rgba(255,255,255,.55)'
-    }
-  ];
-  public lineChart2Legend:boolean = false;
-  public lineChart2Type:string = 'line';
-
-
-  // lineChart3
-  public lineChart3Data:Array<any> = [
-    {
-      data: [78, 81, 80, 45, 34, 12, 40],
-      label: 'Series A'
-    }
-  ];
-  public lineChart3Labels:Array<any> = ['January', 'February', 'March', 'April', 'May', 'June', 'July'];
-  public lineChart3Options:any = {
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        display: false
-      }],
-      yAxes: [{
-        display: false
-      }]
-    },
-    elements: {
-      line: {
-        borderWidth: 2
-      },
-      point: {
-        radius: 0,
-        hitRadius: 10,
-        hoverRadius: 4,
-      },
-    },
-    legend: {
-      display: false
-    }
-  };
-  public lineChart3Colours:Array<any> = [
-    {
-      backgroundColor: 'rgba(255,255,255,.2)',
-      borderColor: 'rgba(255,255,255,.55)',
-    }
-  ];
-  public lineChart3Legend:boolean = false;
-  public lineChart3Type:string = 'line';
-
-
-  // barChart1
-  public barChart1Data:Array<any> = [
-    {
-      data: [78, 81, 80, 45, 34, 12, 40, 78, 81, 80, 45, 34, 12, 40, 12, 40],
-      label: 'Series A'
-    }
-  ];
-  public barChart1Labels:Array<any> = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16'];
-  public barChart1Options:any = {
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        display: false,
-        barPercentage: 0.6,
-      }],
-      yAxes: [{
-        display: false
-      }]
-    },
-    legend: {
-      display: false
-    }
-  };
-  public barChart1Colours:Array<any> = [
-    {
-      backgroundColor: 'rgba(255,255,255,.3)',
-      borderWidth: 0
-    }
-  ];
-  public barChart1Legend:boolean = false;
-  public barChart1Type:string = 'bar';
-
-  // mainChart
-
-  public random(min:number, max:number) {
-    return Math.floor(Math.random()*(max-min+1)+min);
-  }
-
-  public mainChartElements:number = 27;
-  public mainChartData1:Array<number> = [];
-  public mainChartData2:Array<number> = [];
-  public mainChartData3:Array<number> = [];
-
-  public mainChartData:Array<any> = [
-    {
-      data: this.mainChartData1,
-      label: 'Current'
-    },
-    {
-      data: this.mainChartData2,
-      label: 'Previous'
-    },
-    {
-      data: this.mainChartData3,
-      label: 'BEP'
-    }
-  ];
-  public mainChartLabels:Array<any> = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Thursday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  public mainChartOptions:any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        gridLines: {
-          drawOnChartArea: false,
-        },
-        ticks: {
-          callback: function(value:any) {
-            return value.charAt(0);
-          }
-        }
-      }],
-      yAxes: [{
-        ticks: {
-          beginAtZero: true,
-          maxTicksLimit: 5,
-          stepSize: Math.ceil(250 / 5),
-          max: 250
-        }
-      }]
-    },
-    elements: {
-      line: {
-        borderWidth: 2
-      },
-      point: {
-        radius: 0,
-        hitRadius: 10,
-        hoverRadius: 4,
-        hoverBorderWidth: 3,
-      }
-    },
-    legend: {
-      display: false
-    }
-  };
-  public mainChartColours:Array<any> = [
-    { //brandInfo
-      backgroundColor: this.convertHex(this.brandInfo,10),
-      borderColor: this.brandInfo,
-      pointHoverBackgroundColor: '#fff'
-    },
-    { //brandSuccess
-      backgroundColor: 'transparent',
-      borderColor: this.brandSuccess,
-      pointHoverBackgroundColor: '#fff'
-    },
-    { //brandDanger
-      backgroundColor: 'transparent',
-      borderColor: this.brandDanger,
-      pointHoverBackgroundColor: '#fff',
-      borderWidth: 1,
-      borderDash: [8, 5]
-    }
-  ];
-  public mainChartLegend:boolean = false;
-  public mainChartType:string = 'line';
-
-  // social box charts
-
-  public socialChartData1:Array<any> = [
-    {
-      data: [65, 59, 84, 84, 51, 55, 40],
-      label: 'Facebook'
-    }
-  ];
-  public socialChartData2:Array<any> = [
-    {
-      data: [1, 13, 9, 17, 34, 41, 38],
-      label: 'Twitter'
-    }
-  ];
-  public socialChartData3:Array<any> = [
-    {
-      data: [78, 81, 80, 45, 34, 12, 40],
-      label: 'LinkedIn'
-    }
-  ];
-  public socialChartData4:Array<any> = [
-    {
-      data: [35, 23, 56, 22, 97, 23, 64],
-      label: 'Google+'
-    }
-  ];
-
-  public socialChartLabels:Array<any> = ['January','February','March','April','May','June','July'];
-  public socialChartOptions:any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        display:false,
-      }],
-      yAxes: [{
-        display:false,
-      }]
-    },
-    elements: {
-      line: {
-        borderWidth: 2
-      },
-      point: {
-        radius: 0,
-        hitRadius: 10,
-        hoverRadius: 4,
-        hoverBorderWidth: 3,
-      }
-    },
-    legend: {
-      display: false
-    }
-  };
-  public socialChartColours:Array<any> = [
-    {
-      backgroundColor: 'rgba(255,255,255,.1)',
-      borderColor: 'rgba(255,255,255,.55)',
-      pointHoverBackgroundColor: '#fff'
-    }
-  ];
-  public socialChartLegend:boolean = false;
-  public socialChartType:string = 'line';
-
-  // sparkline charts
-
-  public sparklineChartData1:Array<any> = [
-    {
-      data: [35, 23, 56, 22, 97, 23, 64],
-      label: 'Clients'
-    }
-  ];
-  public sparklineChartData2:Array<any> = [
-    {
-      data: [65, 59, 84, 84, 51, 55, 40],
-      label: 'Clients'
-    }
-  ];
-
-  public sparklineChartLabels:Array<any> = ['January','February','March','April','May','June','July'];
-  public sparklineChartOptions:any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [{
-        display:false,
-      }],
-      yAxes: [{
-        display:false,
-      }]
-    },
-    elements: {
-      line: {
-        borderWidth: 2
-      },
-      point: {
-        radius: 0,
-        hitRadius: 10,
-        hoverRadius: 4,
-        hoverBorderWidth: 3,
-      }
-    },
-    legend: {
-      display: false
-    }
-  };
-  public sparklineChartDefault:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: '#d1d4d7',
-    }
-  ];
-  public sparklineChartPrimary:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: this.brandPrimary,
-    }
-  ];
-  public sparklineChartInfo:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: this.brandInfo,
-    }
-  ];
-  public sparklineChartDanger:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: this.brandDanger,
-    }
-  ];
-  public sparklineChartWarning:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: this.brandWarning,
-    }
-  ];
-  public sparklineChartSuccess:Array<any> = [
-    {
-      backgroundColor: 'transparent',
-      borderColor: this.brandSuccess,
-    }
-  ];
-
-
-  public sparklineChartLegend:boolean = false;
-  public sparklineChartType:string = 'line';
-
 
   ngOnInit(): void {
-    //generate random values for mainChart
-    for (var i = 0; i <= this.mainChartElements; i++) {
-      this.mainChartData1.push(this.random(50,200));
-      this.mainChartData2.push(this.random(80,100));
-      this.mainChartData3.push(65);
-    }
+
+    this.route.params.subscribe(params => {
+      console.log('params[id]');
+      console.log(params['id']);
+      this.nodeApiService.adminId = params['id'];
+      this.nodeApiService.getToApp('api.php',{getUserId:this.nodeApiService.adminId})
+      .then(data=>{
+        console.log('set admin data');
+        this.nodeApiService.adminDetails = data;
+        console.log(this.nodeApiService.adminDetails);
+      })
+      //  this.id = +params['id']; 
+    });
+    // this.studentList = [{ id: '', name: "Select Student" },{id:1,name:'test1'},{id:2,name:'test2'}]
+    this.studentService.getStudents()
+    .then((list)=>{
+      console.log('student list');
+      console.log(list);
+      this.studentList = list;
+    });
+    this.nodeApiService.getToApp('modules/api.php',{sections:1})
+    .then((data:any)=>{
+      console.log('section list');
+      console.log(data);
+      this.sectionList = [];
+      for (var index = 0; index < data.list.length; index++) {
+        var element = data.list[index];
+        let section = {
+          idno:`${element['sectionidno']}:${element['subjectidno']}`,
+          name:`${element['sectioncode']} / ${element['subjectcode']}`
+        }
+        this.sectionList.push(section);
+      }
+    });
+
+    AWS.config.update({
+        accessKeyId : 'AKIAICJXZHALRWXXBLZQ',
+        secretAccessKey : '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'
+    });
+    AWS.config.region = 'us-west-2';
+
+
+    
+
   }
 }

@@ -11,13 +11,14 @@ import { ChartsModule } from 'ng2-charts/ng2-charts';
 import { SIDEBAR_TOGGLE_DIRECTIVES } from './shared/sidebar.directive';
 import { AsideToggleDirective } from './shared/aside.directive';
 import { BreadcrumbsComponent } from './shared/breadcrumb.component';
-
+import { HttpModule } from '@angular/http'; 
 // Routing Module
 import { AppRoutingModule } from './app.routing';
 
 //Layouts
 import { FullLayoutComponent } from './layouts/full-layout.component';
-
+// import { NodeapiService } from './shared/nodeapi.service';
+// import { Config } from './config/config';
 
 @NgModule({
   imports: [
@@ -25,7 +26,8 @@ import { FullLayoutComponent } from './layouts/full-layout.component';
     AppRoutingModule,
     DropdownModule.forRoot(),
     TabsModule.forRoot(),
-    ChartsModule
+    ChartsModule,
+    HttpModule
   ],
   declarations: [
     AppComponent,
@@ -37,7 +39,7 @@ import { FullLayoutComponent } from './layouts/full-layout.component';
   ],
   providers: [{
     provide: LocationStrategy,
-    useClass: HashLocationStrategy
+    useClass: HashLocationStrategy,
   }],
   bootstrap: [ AppComponent ]
 })

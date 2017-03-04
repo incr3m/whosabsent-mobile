@@ -4,7 +4,6 @@
           <strong>Face</strong> Recognition
       </div>
       <div class="card-block">
-          <form action="" method="post" enctype="multipart/form-data" class="form-horizontal ">
               <div class="form-group row">
                 <div class="col-md-12">
                   <img id="uploadPreview" [src]="uploadPreviewSrc" style="width: 100%;min-height:100px" />
@@ -16,27 +15,95 @@
                     <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" (change)="changeListener($event)" accept="image/*">
                 </div>
               </div>
-              <div class="form-group row" >
-                <div class="col-md-12" >
-                  <button class="btn btn-secondary btn-lg btn-block" type="button" (click)="selectNewClickListener($event)">Capture New</button>
-                  <button [hidden]="!uploadPreviewSrc" class="btn btn-success btn-lg btn-block" type="button">Set as Attendance</button>
-                  <button [hidden]="!uploadPreviewSrc" class="btn btn-primary btn-lg btn-block" type="button">Set as Student Photo</button>
-                </div>
-              </div>
-              <div class="controls">
-                <div class="form-group row">
-                    <label class="col-md-3 form-control-label" for="select">Select</label>
-                    <div class="col-md-9">
-                        <select id="select" name="select" class="form-control" size="1">
-                            <option value="0">Please select</option>
-                            <option value="1">Option #1</option>
-                            <option value="2">Option #2</option>
-                            <option value="3">Option #3</option>
-                        </select>
+              <div class="form-group row" *ngIf="searchedStudent">
+                <div class="col-md-12 col-sm-12">
+                    <div class="card " [ngClass]="{'card-outline-success' : !searchedStudent.notfound,'card-outline-danger':searchedStudent.notfound}">
+                        <div class="card-header">
+                            {{(searchedStudent.notfound)?'No matches found.':searchedStudent.name}}
+                            <span *ngIf="!searchedStudent.notfound" class="tag tag-success pull-right">Success</span>
+                            <span *ngIf="searchedStudent.notfound" class="tag tag-success pull-right">Failed</span>
+                        </div>
+                        <div class="card-block">
+                            <div *ngIf="!searchedStudent.notfound" class="row">
+                                <img [src]="searchedStudent.photo" style="width: 70%;min-height:100px;margin-left:15%" />
+                                <div>
+                                    <div><strong>USN:</strong>{{searchedStudent.usn}}</div>
+                                    <div><strong>Role:</strong>{{searchedStudent.roles}}</div>
+                                    <div><strong>Email:</strong>{{searchedStudent.email}}</div>
+                                    <div><strong>Date Added:</strong>{{searchedStudent.dateadded}}</div>
+                                    <div *ngIf="searchedStudent.logstatus">
+                                        <br/>
+                                        <h6>Attendance Log:</h6>
+                                        <div><strong>Status:</strong>{{searchedStudent.logstatus}}</div>
+                                        <div><strong>Message:</strong>{{searchedStudent.logmessage}}</div>
+                                    </div>
+                                </div>
+                            </div>  
+                            
+                        </div>
                     </div>
                 </div>
               </div>
-          </form>
+              <div class="form-group row" >
+                <div class="col-md-12" >
+                  <button [disabled]="photoUploading" class="btn btn-success btn-lg btn-block" type="button" (click)="selectNewClickListener($event)">
+                      <i class="fa fa-camera fa-lg"></i> {{(photoUploading===false)?'Capture Photo':'Finding face match..'}}
+                  </button>
+                  <br/>
+                  <div [hidden]="!processing" style="text-align:center"><h2>Processing..</h2></div>
+                  <div [hidden]="processing">
+                    <button (click)="setAsAttendanceClicked($event)" [hidden]="!searchedStudent||searchedStudent.notfound" class="btn btn-secondary btn-lg btn-block" type="button" [ngClass]="{'active' : mode==controlModes.attendance}" >Attendance Log</button>
+                    <div [hidden]="mode!=controlModes.attendance" class="as-attendance controls">
+                        <div class="form-group row">
+                            <label class="col-md-3 form-control-label" for="select">Select Section:</label>
+                            <div class="col-md-9">
+                                <select class="form-control" [(ngModel)]="selectedSection.idno" (ngModelChange)="sectionSelectChanged($event)">
+                                <option *ngFor="let section of sectionList" [ngValue]="section.idno">{{ section.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row" [hidden]="!selectedSection.idno">
+                            <div class="col-md-6">
+                                <button class="btn btn-md btn-primary" (click)="submitAccountLog($event)" >Submit</button> 
+                            </div>
+                        </div>
+                        <!--<div class="row">
+                            <label class="col-md-3 form-control-label" >Select Mode:</label>
+                        </div>  
+                        <div class="row">
+                            <div class="col-md-6 col-sm-6 col-xs-5 " >
+                                <button class="btn btn-primary btn-md btn-block" type="button"><i class="fa fa-hand-o-right"></i> Timein</button>
+                            </div>
+                            <div class="col-md-6 col-sm-6 col-xs-5 " >
+                                <button class="btn btn-danger btn-md btn-block" type="button">Timeout <i class="fa fa-hand-o-right"></i></button>
+                            </div>
+                        </div>-->
+                    </div>
+                    <br/>
+                    <button (click)="setAsStudentPhotoClicked($event)" [hidden]="!searchedStudent" class="btn btn-secondary btn-lg btn-block" type="button" [ngClass]="{'active' : mode==controlModes.studentinfo}">Manual Register Photo</button>
+                    <div [hidden]="mode!=controlModes.studentinfo" class="as-student controls">
+                        <div class="form-group row">
+                            <label class="col-md-3 form-control-label" for="select">Select Student:</label>
+                            <div class="col-md-9">
+                                <select class="form-control" [(ngModel)]="selectedStudent.accountidno" (ngModelChange)="studentSelectChanged($event)">
+                                <option *ngFor="let student of studentList" [ngValue]="student.accountidno">{{ student.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row" [hidden]="!selectedStudent.accountidno">
+                            <label class="col-md-6 checkbox-inline" for="inline-checkbox1">
+                                <input id="inline-checkbox1" name="inline-checkbox1" type="checkbox" [(ngModel)]="setAsPrimaryPhoto">Set as Primary Photo
+                            </label>
+                            <div class="col-md-6">
+                                <button class="btn btn-md btn-primary" (click)="submitPhotoClickListener($event)" >Submit Photo</button> 
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+              </div>
+          
+          
       </div>
       <div class="card-footer">
           <!-- <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-dot-circle-o"></i> Submit</button>

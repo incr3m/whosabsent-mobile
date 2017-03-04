@@ -1,0 +1,6 @@
+{
+ "appUrl": "https://whosabsent.com/app",
+ "apiUrl": "https://api.whosabsent.com",
+ "bucketUrl":"https://s3-us-west-2.amazonaws.com/incrm.whosabsent/",
+ "debugging": true
+}
