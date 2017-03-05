@@ -25,7 +25,7 @@ export class NodeapiService {
   login(){
     return this._config.load()
       .then(()=>{
-        window.location.href = this._config.get('appUrl')+'/login/login.php?mobile=1';
+        window.location.href = this._config.get('appUrl')+'/index.php?mobile=1';
       });
   }
   getToApp(url,params,auth?){
