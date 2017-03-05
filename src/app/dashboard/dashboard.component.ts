@@ -29,7 +29,23 @@ export class DashboardComponent implements OnInit {
      private studentService: StudentService,
      private nodeApiService: NodeapiService,
      private route: ActivatedRoute
-  ) { }
+  ) { 
+    this.route.params.subscribe(params => {
+      console.log('params[id]');
+      console.log(params['id']);
+      if(!params['id']){
+        this.nodeApiService.login();
+      }
+      this.nodeApiService.adminId = params['id'];
+      this.nodeApiService.getToApp('api.php',{getUserId:this.nodeApiService.adminId})
+      .then(data=>{
+        console.log('set admin data');
+        this.nodeApiService.adminDetails = data;
+        console.log(this.nodeApiService.adminDetails);
+      })
+      //  this.id = +params['id']; 
+    });
+  }
 
   controlModes = ControlMode;
   public brandPrimary:string =  '#20a8d8';
@@ -242,18 +258,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
 
-    this.route.params.subscribe(params => {
-      console.log('params[id]');
-      console.log(params['id']);
-      this.nodeApiService.adminId = params['id'];
-      this.nodeApiService.getToApp('api.php',{getUserId:this.nodeApiService.adminId})
-      .then(data=>{
-        console.log('set admin data');
-        this.nodeApiService.adminDetails = data;
-        console.log(this.nodeApiService.adminDetails);
-      })
-      //  this.id = +params['id']; 
-    });
+    
     // this.studentList = [{ id: '', name: "Select Student" },{id:1,name:'test1'},{id:2,name:'test2'}]
     this.studentService.getStudents()
     .then((list)=>{
