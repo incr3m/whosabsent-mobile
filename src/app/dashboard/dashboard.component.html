@@ -12,10 +12,7 @@
               <div class="form-group row" [hidden]="true">
                 <label class="col-md-3 form-control-label" for="file-input">File input</label>
                 <div class="col-md-9">
-                    <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" accept="image/*"
-                            image-upload
-                            (imageSelected)="selected($event)"
-                            [resizeOptions]="resizeOptions">
+                     <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" (change)="changeListener($event)" accept="image/*">
                 </div>
               </div>
               <div class="form-group row" *ngIf="searchedStudent">
