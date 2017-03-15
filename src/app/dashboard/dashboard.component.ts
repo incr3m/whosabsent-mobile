@@ -103,7 +103,6 @@ export class DashboardComponent implements OnInit {
   public registerNewStudentSubmitClicked($event){
     // this.mode = ControlMode.new;
     console.log(this.newStudentForm);
-    this.startProcessing();
     this.newStudentForm.userIdToken = this.nodeApiService.adminId;
     let valid = true;
     this.newStudentFormError = '';
@@ -134,6 +133,7 @@ export class DashboardComponent implements OnInit {
             accountidno: data['idno'],
             name: this.newStudentForm.firstname
           }
+          this.startProcessing();
           this.submitPhotoClickListener($event);
         }
         
