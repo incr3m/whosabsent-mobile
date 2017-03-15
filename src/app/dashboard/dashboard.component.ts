@@ -188,6 +188,7 @@ export class DashboardComponent implements OnInit {
           console.log('res');
           console.log(res);
           this.endProcessing('Registration Done!');
+          this.reloadStudents();
           this.readThis(this.myInputVariable.nativeElement);
         },err=>{
           console.log('err');
@@ -341,17 +342,19 @@ export class DashboardComponent implements OnInit {
     let key = Date.now().toString();
     return this.nodeApiService.upload(this.selectedStudent.accountidno,key,file);
   }
-
-  ngOnInit(): void {
-
-    
-    // this.studentList = [{ id: '', name: "Select Student" },{id:1,name:'test1'},{id:2,name:'test2'}]
+  private reloadStudents(){
     this.studentService.getStudents()
     .then((list)=>{
       console.log('student list');
       console.log(list);
       this.studentList = list;
     });
+  }
+  ngOnInit(): void {
+
+    
+    // this.studentList = [{ id: '', name: "Select Student" },{id:1,name:'test1'},{id:2,name:'test2'}]
+    this.reloadStudents();
     this.nodeApiService.getToApp('modules/api.php',{sections:1})
     .then((data:any)=>{
       console.log('section list');
