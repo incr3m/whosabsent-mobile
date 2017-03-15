@@ -25,7 +25,7 @@
                         </div>
                         <div class="card-block">
                             <div *ngIf="!searchedStudent.notfound" class="row">
-                                <img [src]="searchedStudent.photo" style="width: 70%;min-height:100px;margin-left:15%" />
+                                <img [src]="searchedStudent.photo" style="width: 70%;min-height:100px;margin-left:15%;max-height:500px;" />
                                 <div>
                                     <div><strong>USN:</strong>{{searchedStudent.usn}}</div>
                                     <div><strong>Role:</strong>{{searchedStudent.roles}}</div>
@@ -50,6 +50,11 @@
                       <i class="fa fa-camera fa-lg"></i> {{(photoUploading===false)?'Capture Photo':'Finding face match..'}}
                   </button>
                   <br/>
+                    <div [hidden]="postprocessmsg==''" class="card card-inverse card-success text-xs-center">
+                    <div class="card-block">
+                       <h3>{{postprocessmsg}}</h3>
+                    </div>
+                    </div>
                   <div [hidden]="!processing" style="text-align:center"><h2>Processing..</h2></div>
                   <div [hidden]="processing">
                     <button (click)="setAsAttendanceClicked($event)" [hidden]="!searchedStudent||searchedStudent.notfound" class="btn btn-secondary btn-lg btn-block" type="button" [ngClass]="{'active' : mode==controlModes.attendance}" >Attendance Log</button>
@@ -67,17 +72,65 @@
                                 <button class="btn btn-md btn-primary" (click)="submitAccountLog($event)" >Submit</button> 
                             </div>
                         </div>
-                        <!--<div class="row">
-                            <label class="col-md-3 form-control-label" >Select Mode:</label>
-                        </div>  
-                        <div class="row">
-                            <div class="col-md-6 col-sm-6 col-xs-5 " >
-                                <button class="btn btn-primary btn-md btn-block" type="button"><i class="fa fa-hand-o-right"></i> Timein</button>
+                    </div>
+                    
+                    <br/>
+                    <button (click)="registerNewStudentClicked($event)" [hidden]="!searchedStudent" class="btn btn-secondary btn-lg btn-block" type="button" [ngClass]="{'active' : mode==controlModes.newstudent}">Register As New Student</button>
+                    <div [hidden]="mode!==controlModes.newstudent">
+                        <div class="card" >
+                            <div class="card-header">
+                                <strong>Student Information</strong>
+                                <small>Form</small>
                             </div>
-                            <div class="col-md-6 col-sm-6 col-xs-5 " >
-                                <button class="btn btn-danger btn-md btn-block" type="button">Timeout <i class="fa fa-hand-o-right"></i></button>
+                            <div class="card-block">
+                                <div class="form-group">
+                                    <label for="firstname">First Name</label>
+                                    <input [(ngModel)]="newStudentForm.firstname" class="form-control" id="firstname" placeholder="Enter your first name" type="text">
+                                </div>
+                                <div class="form-group">
+                                    <label for="midname">Middle Name</label>
+                                    <input [(ngModel)]="newStudentForm.middlename" class="form-control" id="midname" placeholder="Enter your middle name" type="text">
+                                </div>
+                                <div class="form-group">
+                                    <label for="lastname">Last Name</label>
+                                    <input [(ngModel)]="newStudentForm.lastname" class="form-control" id="lastname" placeholder="Enter your last name" type="text">
+                                </div>                            
                             </div>
-                        </div>-->
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                Account Detail
+                            </div>
+                            <div class="card-block">
+                                <div class="form-group">
+                                    <div class="input-group">
+                                        <input [(ngModel)]="newStudentForm.username" class="form-control" id="username2" name="username2" placeholder="Username/Student ID" type="text">
+                                        <span class="input-group-addon"><i class="fa fa-user"></i></span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="input-group">
+                                        <input [(ngModel)]="newStudentForm.password" class="form-control" id="password1" name="password1" placeholder="Password" type="password">
+                                        <span class="input-group-addon"><i class="fa fa-asterisk"></i></span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="input-group">
+                                        <input [(ngModel)]="newStudentForm.confirmpassword" class="form-control" id="password2" name="password2" placeholder="Confirm Password" type="password">
+                                        <span class="input-group-addon"><i class="fa fa-asterisk"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div [hidden]="newStudentFormError==''" class="card card-inverse card-danger text-xs-center">
+                            <div class="card-block">
+                                <blockquote class="card-blockquote">
+                                    <p>{{newStudentFormError}}</p>
+                                </blockquote>
+                            </div>
+                        </div>
+                        <button class="btn btn-md btn-primary" (click)="registerNewStudentSubmitClicked($event)" >Register</button> 
+                        <button class="btn btn-md btn-danger" (click)="registerNewStudentCancelClicked($event)" >Cancel</button> 
                     </div>
                     <br/>
                     <button (click)="setAsStudentPhotoClicked($event)" [hidden]="!searchedStudent" class="btn btn-secondary btn-lg btn-block" type="button" [ngClass]="{'active' : mode==controlModes.studentinfo}">Manual Register Photo</button>

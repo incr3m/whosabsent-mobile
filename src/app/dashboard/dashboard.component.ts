@@ -14,7 +14,8 @@ import { ActivatedRoute } from '@angular/router';
 enum ControlMode  {
     new,
     attendance,
-    studentinfo
+    studentinfo,
+    newstudent
 }  
 
 @Component({
@@ -65,6 +66,7 @@ export class DashboardComponent implements OnInit {
   private bucketName = 'incrm.whosabsent';
   private s3client:any;
   public photoUploading = false;
+  public postprocessmsg = '';
   public selectedStudent = {
     accountidno : '',
     name: ''
@@ -74,12 +76,89 @@ export class DashboardComponent implements OnInit {
     name: ''
   }
   public searchedStudent:any;
+  public newStudentForm = {
+    firstname: '',
+    middlename: '',
+    lastname: '',
+    username: '',
+    password: '',
+    confirmpassword: '',
+    forcemode: 'create',
+    roles: 'STUDENT',
+    userIdToken: ''
+  }
+  public newStudentFormError = '';
 
   private startProcessing(){
     this.processing = true;
   }
   private endProcessing(info?:string){
     this.processing = false;
+    this.postprocessmsg = info?info:'';
+    this.mode = ControlMode.new;
+  }
+  public registerNewStudentClicked($event){
+    this.mode = ControlMode.newstudent;
+  }
+  public registerNewStudentSubmitClicked($event){
+    // this.mode = ControlMode.new;
+    console.log(this.newStudentForm);
+    this.startProcessing();
+    this.newStudentForm.userIdToken = this.nodeApiService.adminId;
+    let valid = true;
+    this.newStudentFormError = '';
+    for (var key in this.newStudentForm) {
+      if (this.newStudentForm.hasOwnProperty(key)) {
+        var element = this.newStudentForm[key];
+        if(!element||element===""){
+          valid = false;
+          alert(`field '${key}' should not be empty`);
+        }
+      }
+    }
+    if(valid){
+      this.nodeApiService.postToApp('/modules/account/registerstudent.php',this.newStudentForm)
+      .then((data:any)=>{
+        console.log('search result');
+        console.log(data);
+        this.newStudentFormError = '';
+        let err =data['errors'];
+        if(err){
+          console.log('error occurred');
+          console.log(err);
+          this.newStudentFormError = err;
+          console.log(this.newStudentFormError);
+        }
+        else if(data['idno']){
+          this.selectedStudent = {
+            accountidno: data['idno'],
+            name: this.newStudentForm.firstname
+          }
+          this.submitPhotoClickListener($event);
+        }
+        
+      },err=>{
+        console.log('error occurred');
+        console.log(err);
+        this.newStudentFormError = err['errors'];
+        console.log(this.newStudentFormError);
+        
+      });
+    }
+  }
+  public registerNewStudentCancelClicked($event){
+    this.newStudentForm = {
+      firstname: '',
+      middlename: '',
+      lastname: '',
+      username: '',
+      password: '',
+      confirmpassword: '',
+      forcemode: 'create',
+      roles: 'STUDENT',
+      userIdToken: this.nodeApiService.adminId
+    };
+    this.newStudentFormError = '';
     this.mode = ControlMode.new;
   }
   public submitPhotoClickListener($event){
@@ -94,24 +173,31 @@ export class DashboardComponent implements OnInit {
       this.send(file)
       .then(data=>{
         if(!data['ok']) return;
+        if(!data['faceId']) {
+          alert('no face id found');
+          return;
+        }
+          
         this.nodeApiService.postToApp('modules/account/photo/photo.php',{
           newphotoidno:data['accountId'],
           filename:data['savedKey'],
+          faceId:data['faceId'],
           isprimary:this.setAsPrimaryPhoto
         })
         .then(res=>{
           console.log('res');
           console.log(res);
-          this.endProcessing();
+          this.endProcessing('Registration Done!');
+          this.readThis(this.myInputVariable.nativeElement);
         },err=>{
           console.log('err');
           console.log(err);
-          this.endProcessing();
+          this.endProcessing('Error occurred! '+err);
         });
       },err=>{
         console.log('err');
         console.log(err);
-        this.endProcessing();
+        this.endProcessing('Error occurred! '+err);
       })
       
       
