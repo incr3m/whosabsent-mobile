@@ -7,6 +7,7 @@ import { Config } from './../config/config';
 import * as _ from 'underscore';
 import * as AWS from 'aws-sdk';
 import { ActivatedRoute } from '@angular/router';
+import { ImageResult, ResizeOptions } from 'ng2-imageupload';
 // import * as S3Uploader from 's3-uploader';
 
 
@@ -88,6 +89,18 @@ export class DashboardComponent implements OnInit {
     userIdToken: ''
   }
   public newStudentFormError = '';
+
+
+  public resizeOptions: ResizeOptions = {
+      resizeMaxHeight: 1024,
+      resizeMaxWidth: 1024
+  };
+
+  public selected(imageResult: ImageResult) {
+        this.uploadPreviewSrc = imageResult.resized
+            && imageResult.resized.dataURL
+            || imageResult.dataURL;
+    }
 
   private startProcessing(){
     this.processing = true;

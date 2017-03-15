@@ -4,13 +4,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardRoutingModule } from './dashboard-routing.module';
+import { ImageUploadModule } from 'ng2-imageupload';
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     DashboardRoutingModule,
-    ChartsModule
+    ChartsModule,
+    ImageUploadModule
   ],
   declarations: [ DashboardComponent ]
 })

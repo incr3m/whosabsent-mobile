@@ -12,7 +12,10 @@
               <div class="form-group row" [hidden]="true">
                 <label class="col-md-3 form-control-label" for="file-input">File input</label>
                 <div class="col-md-9">
-                    <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" (change)="changeListener($event)" accept="image/*">
+                    <input #myInput id="uploadImage" type="file" id="file-input" name="file-input" (change)="changeListener($event)" accept="image/*"
+                            image-upload
+                            (imageSelected)="selected($event)"
+                            [resizeOptions]="resizeOptions">
                 </div>
               </div>
               <div class="form-group row" *ngIf="searchedStudent">
@@ -25,8 +28,8 @@
                         </div>
                         <div class="card-block">
                             <div *ngIf="!searchedStudent.notfound" class="row">
-                                <img [src]="searchedStudent.photo" style="width: 70%;min-height:100px;margin-left:15%;max-height:500px;" />
-                                <div>
+                                <img [src]="searchedStudent.photo" style="height:auto;width: auto;max-height: 300px;display: block;margin: auto;" />
+                                <div style="margin: auto">
                                     <div><strong>USN:</strong>{{searchedStudent.usn}}</div>
                                     <div><strong>Role:</strong>{{searchedStudent.roles}}</div>
                                     <div><strong>Email:</strong>{{searchedStudent.email}}</div>
